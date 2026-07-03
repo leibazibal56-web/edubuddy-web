@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduBuddy - Tutore Inteligent de BAC și Evaluare Națională</title>
+    <!-- Google Fonts (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Stripe JS SDK -->
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar: Subjects & Exam Toggle -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon">🎓</div>
+                <div class="logo-text">
+                    <h1>EduBuddy</h1>
+                    <span>TUTOR INTELIGENT</span>
+                </div>
+            </div>
+
+            <!-- Exam Type Switcher (BAC vs EN) -->
+            <div class="exam-toggle-container">
+                <button class="toggle-btn active" id="btn-bac" onclick="switchExam('BAC')">BACALAUREAT</button>
+                <button class="toggle-btn" id="btn-en" onclick="switchExam('EN')">EVALUARE NAȚIONALĂ</button>
+            </div>
+
+            <!-- Subjects List -->
+            <div class="subjects-list-container">
+                <h3 class="list-title">Materiile Disponibile</h3>
+                <ul class="subjects-list" id="subjects-list">
+                    <!-- Loaded dynamically via app.js -->
+                </ul>
+            </div>
+
+            <!-- User Status / Upgrade Button -->
+            <div class="user-status-card">
+                <div class="status-info">
+                    <span class="status-label">STATUS CONT</span>
+                    <span class="status-value badge-free" id="premium-status-badge">PLAN GRATUIT</span>
+                </div>
+                <button class="upgrade-btn" onclick="openPremiumModal()">DEBLOCHEAZĂ PRO 👑</button>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="main-content">
+            <!-- Mobile Navigation Bar -->
+            <header class="mobile-navbar">
+                <button class="menu-toggle-btn" onclick="toggleSidebar()">☰</button>
+                <div class="mobile-title">EduBuddy</div>
+                <button class="mobile-upgrade-btn" onclick="openPremiumModal()">PRO 👑</button>
+            </header>
+
+            <!-- Top Header (Desktop) -->
+            <header class="chat-header">
+                <div class="active-subject-info">
+                    <span class="subject-emoji" id="header-subject-emoji">📖</span>
+                    <div>
+                        <h2 class="active-subject-name" id="header-subject-name">Limba și Literatura Română</h2>
+                        <p class="subject-description" id="header-subject-desc">Pregătire socratică pentru Subiectul I, II și III de examen.</p>
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <div class="message-counter" id="message-counter-badge">
+                        Întrebări consumate: <span id="used-messages-count">0</span>/10
+                    </div>
+                    <button class="btn-clear-chat" onclick="clearCurrentChat()" title="Șterge conversația curentă">
+                        🗑️ Șterge
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat Dialog List -->
+            <div class="chat-dialog-container" id="chat-dialog-container">
+                <!-- Welcome/Onboarding screen when no messages are present -->
+                <div class="onboarding-view" id="onboarding-view">
+                    <div class="onboarding-icon">🎓</div>
+                    <h2>Pregătește-te socratic cu EduBuddy!</h2>
+                    <p>Sunt tutorele tău inteligent adaptat programei oficiale din România. Te ajut să rezolvi subiecte, să memorezi scheme sau comentarii și să îți corectezi rezolvările pe baza baremului oficial de corectare.</p>
+                    
+                    <div class="presets-grid" id="presets-grid">
+                        <!-- Loaded dynamically via app.js -->
+                    </div>
+                </div>
+
+                <!-- Chat bubble items loaded dynamically -->
+            </div>
+
+            <!-- Typing indicator -->
+            <div class="typing-indicator-container" id="typing-indicator-container" style="display: none;">
+                <div class="typing-bubble">
+                    <span>EduBuddy gândește socratic</span>
+                    <div class="typing-dots">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning/Disclaimer overlay -->
+            <div class="disclaimer-bar">
+                ⚠️ <strong>Atenție:</strong> EduBuddy este un asistent de învățare bazat pe AI. Prezentul ghid este informativ și <strong>nu înlocuiește</strong> procesul de instruire școlară obligatorie.
+            </div>
+
+            <!-- Input Bar Area -->
+            <footer class="chat-input-bar">
+                <!-- Lock screen overlay when free limit is hit -->
+                <div class="input-lock-overlay" id="input-lock-overlay" style="display: none;">
+                    <div class="lock-icon">🔒</div>
+                    <div>
+                        <h4>AI ATINS LIMITA DE 10 ÎNTREBĂRI GRATUITE</h4>
+                        <p>Deblochează accesul Premium pentru a continua pregătirea la toate materiile de examen.</p>
+                    </div>
+                    <button class="lock-upgrade-btn" onclick="openPremiumModal()">DEBLOCHEAZĂ PRO ACUM</button>
+                </div>
+
+                <div class="input-row" id="input-row">
+                    <button class="mic-btn" id="mic-btn" onclick="simulateVoiceInput()" title="Comandă vocală (Simulare)">🎤</button>
+                    <textarea class="chat-text-area" id="chat-input-field" placeholder="Scrie rezolvarea ta, eseul sau întreabă-mă orice..." rows="1" onkeydown="handleInputKeyDown(event)"></textarea>
+                    <button class="send-btn" id="send-btn" onclick="sendUserMessage()" disabled>▲</button>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Premium Upgrade Modal Dialog -->
+    <div class="modal-overlay" id="premium-modal" style="display: none;">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="closePremiumModal()">×</button>
+            <div class="modal-header">
+                <h2>Deblochează EduBuddy Premium 👑</h2>
+                <p>Pregătește-te socratic, deblochează accesul nelimitat la toate materiile și obține note maxime la examen.</p>
+            </div>
+
+            <div class="plans-grid">
+                <!-- Plan 1: Single Subject -->
+                <div class="plan-card">
+                    <div class="plan-badge">O SINGURĂ MATERIE</div>
+                    <h3>Materie Individuală</h3>
+                    <div class="plan-price">20 RON <span>/ o singură plată</span></div>
+                    <p class="plan-desc">Deblochează accesul nelimitat pe viață pentru o singură materie la alegere (de exemplu, doar Matematică sau doar Română).</p>
+                    <button class="plan-buy-btn" onclick="initiateStripeCheckout('single_subject')">Cumpără acum</button>
+                </div>
+
+                <!-- Plan 2: All Subjects (Best Value) -->
+                <div class="plan-card popular">
+                    <div class="plan-badge badge-popular">CEL MAI POPULAR</div>
+                    <h3>Pachet Complet</h3>
+                    <div class="plan-price">50 RON <span>/ o singură plată</span></div>
+                    <p class="plan-desc">Deblochează accesul nelimitat pe viață la TOATE cele 13 materii de examen (Română, Matematică, Istorie, Geografie, etc.).</p>
+                    <button class="plan-buy-btn" onclick="initiateStripeCheckout('all_subjects')">Deblochează totul</button>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                🔒 Plăți securizate procesate prin Stripe. Acces pe viață la materialele de studiu.
+            </div>
+        </div>
+    </div>
+
+    <!-- scripts -->
+    <script src="app.js"></script>
+</body>
+</html>
