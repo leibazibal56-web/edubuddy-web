@@ -6,6 +6,7 @@ let currentExamType = 'BAC';
 let currentSubject = 'Română';
 let isPremiumUnlocked = localStorage.getItem('isPremiumUnlocked') === 'true';
 let messageCounter = parseInt(localStorage.getItem('messageCounter') || '0', 10);
+let isAiThinking = false;
 
 // Subjects configuration (Matching the 13 BAC subjects and 2 EN subjects of the Android app)
 const subjectsConfig = {
@@ -113,7 +114,9 @@ window.addEventListener('DOMContentLoaded', () => {
     chatInput.addEventListener('input', () => {
         chatInput.style.height = 'auto';
         chatInput.style.height = (chatInput.scrollHeight) + 'px';
-        sendBtn.disabled = chatInput.value.trim() === '';
+        if (!isAiThinking) {
+            sendBtn.disabled = chatInput.value.trim() === '';
+        }
     });
 });
 
@@ -278,13 +281,18 @@ function simulateVoiceInput() {
 
 // Send User Message
 async function sendUserMessage() {
+    if (isAiThinking) return;
     const text = chatInput.value.trim();
     if (!text || isLimitHit()) return;
 
-    // Reset Input
+    // Set locks and disable input elements
+    isAiThinking = true;
+    chatInput.disabled = true;
+    sendBtn.disabled = true;
+
+    // Reset Input field sizing
     chatInput.value = '';
     chatInput.style.height = 'auto';
-    sendBtn.disabled = true;
 
     // Hide onboarding if first message
     onboardingView.style.display = 'none';
@@ -356,7 +364,12 @@ async function sendUserMessage() {
         typingIndicator.style.display = 'none';
 
         if (data.error) {
-            addMessageBubble('AI', `⚠️ Ne pare rău, a apărut o eroare la comunicarea cu serverul: ${data.error}`);
+            const errMsg = data.error.toLowerCase();
+            let displayError = "Asistentul EduBuddy întâmpină o mică dificultate de conectare cu creierul AI. Te rugăm să reîncerci peste câteva momente. ⚡";
+            if (errMsg.includes("quota") || errMsg.includes("limit") || errMsg.includes("rate") || errMsg.includes("429")) {
+                displayError = "Serverul este momentan supraîncărcat din cauza numărului mare de utilizatori. Te rugăm să reîncerci peste 1 minut. Pregătirea ta este importantă pentru noi! 🎓";
+            }
+            addMessageBubble('AI', `⚠️ ${displayError}`);
         } else {
             // Add AI response bubble
             addMessageBubble('AI', data.text);
@@ -364,10 +377,20 @@ async function sendUserMessage() {
         }
     } catch (error) {
         typingIndicator.style.display = 'none';
-        addMessageBubble('AI', `⚠️ Eroare de rețea. Te rugăm să verifici conexiunea la internet sau statusul serverului. Eroare: ${error.message}`);
+        const errMsg = error.message.toLowerCase();
+        let displayError = "Te rugăm să verifici conexiunea la internet sau statusul serverului. Asistentul nu se poate conecta momentan. ⚡";
+        if (errMsg.includes("quota") || errMsg.includes("limit") || errMsg.includes("rate") || errMsg.includes("429")) {
+            displayError = "Serverul este momentan supraîncărcat din cauza numărului mare de utilizatori. Te rugăm să reîncerci peste 1 minut. Pregătirea ta este importantă pentru noi! 🎓";
+        }
+        addMessageBubble('AI', `⚠️ ${displayError}`);
+    } finally {
+        // Unlock and restore input states
+        isAiThinking = false;
+        chatInput.disabled = false;
+        sendBtn.disabled = chatInput.value.trim() === '';
+        chatInput.focus();
+        chatContainer.scrollTop = chatContainer.scrollHeight;
     }
-
-    chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
 // Render message bubbles in DOM
